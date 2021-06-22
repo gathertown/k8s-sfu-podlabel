@@ -69,6 +69,13 @@ func main() {
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
+
+	// variables
+	namespace := flag.String("namespace", "sfu", "kubernetes namespace, default: 'sfu'")
+	labelKey := flag.String("key", "app", "existing pod label key identifier, default: 'app'")
+	labelValue := flag.String("value", "sfu", "existing pod label value identifier, default: 'sfu'")
+	podLabelKey := flag.String("label", "deploy", "new pod label key identifier. Values are: group1, group2, ..., groupN, default 'deploy'")
+
 	flag.Parse()
 
 	// use the current context in kubeconfig
@@ -83,27 +90,21 @@ func main() {
 		panic(err.Error())
 	}
 
-	// sfu app
-	namespace := "sfu"
-	labelKey := "app"
-	labelValue := "sfu"
-	podLabelKey := "deploy"
-
-	pods, err := getPods(c, labelKey, labelValue, namespace)
+	pods, err := getPods(c, *labelKey, *labelValue, *namespace)
 	if err != nil {
 		panic(err.Error())
 	}
 
 	numberOfPods := len(pods.Items)
 
-	fmt.Printf("Found %d pods featuring label '%s=%s' running on %s namespace\n", numberOfPods, labelKey, labelValue, namespace)
+	fmt.Printf("Found %d pods featuring label '%s=%s' running on %s namespace\n", numberOfPods, *labelKey, *labelValue, *namespace)
 
 	for i, pod := range pods.Items {
 		podLabelValue := getLabelGroup(numberOfPods, i)
-		patch := fmt.Sprintf(`[{"op":"add","path":"/metadata/labels/%s","value":"%s" }]`, podLabelKey, podLabelValue)
-		_, err := c.CoreV1().Pods(namespace).Patch(context.TODO(), pod.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{FieldManager: "JsonPatch"})
+		patch := fmt.Sprintf(`[{"op":"add","path":"/metadata/labels/%s","value":"%s" }]`, *podLabelKey, podLabelValue)
+		_, err := c.CoreV1().Pods(*namespace).Patch(context.TODO(), pod.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{FieldManager: "JsonPatch"})
 		if err == nil {
-			fmt.Println(fmt.Sprintf("Label %s=%s added to pod %s", podLabelKey, podLabelValue, pod.Name))
+			fmt.Println(fmt.Sprintf("Label %s=%s added to pod %s", *podLabelKey, podLabelValue, pod.Name))
 		} else {
 			fmt.Println(err)
 		}
